@@ -1,24 +1,44 @@
-import logo from './logo.svg';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { PlaylistProvider } from './contexts/PlaylistContext';
+import Sidebar from './components/Sidebar';
+import HomePage from './components/HomePage';
+import NowPlayingBar from './components/NowPlayingBar';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import './App.css';
 
 function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ThemeProvider>
+      <PlaylistProvider>
+        <Router>
+          <Routes>
+            <Route 
+              path="/login" 
+              element={<Login />}
+            />
+            <Route 
+              path="/register" 
+              element={<Register />}
+            />
+            <Route
+              path="/*"
+              element={
+                <div className="flex">
+                  <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                  <HomePage onMenuClick={() => setIsSidebarOpen(true)} />
+                  <NowPlayingBar />
+                </div>
+              }
+            />
+          </Routes>
+        </Router>
+      </PlaylistProvider>
+    </ThemeProvider>
   );
 }
 
