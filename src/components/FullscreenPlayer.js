@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import useWaveform from '../hooks/useWaveform';
 import useAudioPlayer, { REPEAT_MODES } from '../hooks/useAudioPlayer';
@@ -14,35 +14,35 @@ import {
 } from '@heroicons/react/24/solid';
 import { useTheme } from '../contexts/ThemeContext';
 
-const ImageWithFallback = ({ src, alt, className }) => {
-  const [error, setError] = useState(false);
-  const imageFormats = [
-    { format: 'image/avif', ext: 'avif' },
-    { format: 'image/webp', ext: 'webp' },
-    { format: 'image/jpeg', ext: 'jpg' },
-  ];
+const ImageWithFallback = ({ track, className }) => {
+  // Get the best available image
+  const getImageUrl = () => {
+    if (!track) return '/placeholder.jpg';
+    
+    // Check album images first
+    if (track.album?.images) {
+      const { large, medium, small, thumbnail } = track.album.images;
+      return large || medium || small || thumbnail;
+    }
+    
+    // Then check track images
+    if (track.images) {
+      const { large, medium, small, thumbnail } = track.images;
+      return large || medium || small || thumbnail;
+    }
 
-  const getImageUrl = (baseUrl, format) => {
-    return baseUrl.replace(/\.[^/.]+$/, `.${format}`);
+    return '/placeholder.jpg';
   };
 
   return (
-    <picture>
-      {!error && imageFormats.map(({ format, ext }) => (
-        <source
-          key={format}
-          type={format}
-          srcSet={getImageUrl(src, ext)}
-          onError={() => setError(true)}
-        />
-      ))}
-      <img
-        src={src}
-        alt={alt}
-        className={className}
-        onError={() => setError(true)}
-      />
-    </picture>
+    <img
+      src={getImageUrl()}
+      alt={track?.title || 'Track cover'}
+      className={className}
+      onError={(e) => {
+        e.target.src = '/placeholder.jpg';
+      }}
+    />
   );
 };
 
@@ -57,7 +57,7 @@ const FullscreenPlayer = ({ onClose }) => {
     repeatMode,
     shuffle,
     toggleRepeatMode,
-    toggleShuffle,
+    toggleShuffleMode,
     playNext,
     playPrevious,
   } = useAudioPlayer();
@@ -70,6 +70,8 @@ const FullscreenPlayer = ({ onClose }) => {
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
+
+  if (!currentTrack) return null;
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${
@@ -88,8 +90,7 @@ const FullscreenPlayer = ({ onClose }) => {
       <div className="max-w-4xl w-full px-4">
         <div className="aspect-square relative mb-8 rounded-lg overflow-hidden group">
           <ImageWithFallback
-            src={currentTrack?.imageUrl || '/placeholder.jpg'}
-            alt={currentTrack?.title}
+            track={currentTrack}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -107,13 +108,13 @@ const FullscreenPlayer = ({ onClose }) => {
         </div>
 
         <div className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-center mb-8`}>
-          <h1 className="text-4xl font-bold mb-2">{currentTrack?.title}</h1>
+          <h1 className="text-4xl font-bold mb-2">{currentTrack.title}</h1>
           <p className={`text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            {currentTrack?.artist}
+            {currentTrack.artist?.name || 'Unknown Artist'}
           </p>
-          {currentTrack?.album && (
+          {currentTrack.album?.title && (
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
-              {currentTrack.album}
+              {currentTrack.album.title}
             </p>
           )}
         </div>
@@ -124,16 +125,13 @@ const FullscreenPlayer = ({ onClose }) => {
             width="800"
             height="100"
             className={`w-full ${isWaveformLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-            style={{
-              '--waveform-color': isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'
-            }}
           />
         </div>
 
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-6 mb-4">
             <button
-              onClick={toggleShuffle}
+              onClick={toggleShuffleMode}
               className={`${
                 shuffle ? 'text-green-500' : isDarkMode ? 'text-white' : 'text-gray-900'
               } hover:scale-105 transition-transform`}
@@ -164,7 +162,7 @@ const FullscreenPlayer = ({ onClose }) => {
 
             <button
               onClick={() => playNext()}
-              className="text-white hover:scale-105 transition-transform"
+              className={`${isDarkMode ? 'text-white' : 'text-gray-900'} hover:scale-105 transition-transform`}
               aria-label="Suivant"
             >
               <ForwardIcon className="h-8 w-8" />
@@ -173,7 +171,7 @@ const FullscreenPlayer = ({ onClose }) => {
             <button
               onClick={toggleRepeatMode}
               className={`${
-                repeatMode !== REPEAT_MODES.OFF ? 'text-green-500' : 'text-white'
+                repeatMode !== REPEAT_MODES.OFF ? 'text-green-500' : isDarkMode ? 'text-white' : 'text-gray-900'
               } hover:scale-105 transition-transform relative`}
               aria-label="Mode répétition"
             >
@@ -215,7 +213,7 @@ const FullscreenPlayer = ({ onClose }) => {
                 }`} />
               </div>
             </div>
-            <span className="text-sm text-gray-400 w-12">
+            <span className={`text-sm ${isDarkMode ? 'text-zinc-400' : 'text-gray-500'} w-12`}>
               {formatTime(duration)}
             </span>
           </div>
@@ -225,4 +223,4 @@ const FullscreenPlayer = ({ onClose }) => {
   );
 };
 
-export default FullscreenPlayer; 
+export default FullscreenPlayer;

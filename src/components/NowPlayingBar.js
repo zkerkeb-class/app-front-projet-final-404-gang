@@ -49,6 +49,24 @@ const NowPlayingBar = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { isDarkMode } = useTheme();
 
+  const getImageUrl = (track) => {
+    if (!track) return "https://via.placeholder.com/56?text=Cover";
+    
+    // Check album images first
+    if (track.album?.images) {
+      const { thumbnail, small, medium } = track.album.images;
+      return thumbnail || small || medium;
+    }
+    
+    // Then check track images
+    if (track.images) {
+      const { thumbnail, small, medium } = track.images;
+      return thumbnail || small || medium;
+    }
+
+    return "https://via.placeholder.com/56?text=Cover";
+  };
+
   return (
     <>
       <div className={`fixed bottom-0 left-0 right-0 px-2 sm:px-4 py-2 sm:py-3 ${
@@ -74,9 +92,12 @@ const NowPlayingBar = () => {
           {/* Track Info */}
           <div className="flex items-center w-1/3 min-w-0">
             <img
-              src={currentTrack?.imageUrl || "https://via.placeholder.com/56?text=Cover"}
-              alt="Album cover"
+              src={getImageUrl(currentTrack)}
+              alt={currentTrack?.title || "Album cover"}
               className="w-10 h-10 sm:w-14 sm:h-14 rounded mr-2 sm:mr-4 flex-shrink-0"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/56?text=Cover";
+              }}
             />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -235,4 +256,4 @@ const NowPlayingBar = () => {
   );
 };
 
-export default NowPlayingBar; 
+export default NowPlayingBar;
