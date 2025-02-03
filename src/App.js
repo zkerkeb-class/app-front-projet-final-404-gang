@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { PlaylistProvider } from './contexts/PlaylistContext';
+import { PlayerProvider } from './contexts/PlayerContext';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import PlaylistPage from './pages/PlaylistPage';
@@ -21,22 +22,24 @@ function App() {
     <Router>
       <ThemeProvider>
         <PlaylistProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/" element={<Layout />}>
-              <Route index element={<HomePage />} />
-              <Route path="search" element={<SearchPage />} />
-              <Route path="library" element={<LibraryPage />} />
-              <Route path="playlists" element={<PlaylistsPage />} />
-              <Route path="playlist/:id" element={<PlaylistPage />} />
-              <Route path="albums" element={<AlbumsPage />} />
-              <Route path="album/:id" element={<AlbumPage />} />
-              <Route path="artists" element={<ArtistsPage />} />
-              <Route path="artist/:id" element={<ArtistPage />} />
-              <Route path="liked-songs" element={<LikedSongsPage />} />
-            </Route>
-          </Routes>
+          <PlayerProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/" element={<Layout />}>
+                <Route index element={<HomePage />} />
+                <Route path="search" element={<SearchPage />} />
+                <Route path="library" element={<LibraryPage />} />
+                <Route path="playlists" element={<PlaylistsPage />} />
+                <Route path="playlist/:id" element={<PlaylistPage />} />
+                <Route path="albums" element={<AlbumsPage />} />
+                <Route path="album/:id" element={<AlbumPage />} />
+                <Route path="artists" element={<ArtistsPage />} />
+                <Route path="artist/:id" element={<ArtistPage />} />
+                <Route path="liked-songs" element={<LikedSongsPage />} />
+              </Route>
+            </Routes>
+          </PlayerProvider>
         </PlaylistProvider>
       </ThemeProvider>
     </Router>

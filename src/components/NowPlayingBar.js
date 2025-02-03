@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   PlayIcon,
   PauseIcon,
@@ -17,6 +17,7 @@ import useAudioPlayer, { REPEAT_MODES } from '../hooks/useAudioPlayer';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import FullscreenPlayer from './FullscreenPlayer';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePlayer } from '../contexts/PlayerContext';
 
 const formatTime = (time) => {
   if (isNaN(time)) return '0:00';
@@ -27,7 +28,6 @@ const formatTime = (time) => {
 
 const NowPlayingBar = () => {
   const {
-    audioRef,
     isPlaying,
     duration,
     currentTime,
@@ -36,7 +36,6 @@ const NowPlayingBar = () => {
     isLoading,
     repeatMode,
     shuffle,
-    togglePlay,
     seek,
     toggleMute,
     updateVolume,
@@ -44,9 +43,11 @@ const NowPlayingBar = () => {
     toggleShuffle,
     playNext,
     playPrevious,
+    setCurrentTime, // Add this line
+    setIsPlaying // Add this line
   } = useAudioPlayer();
   const { currentTrack } = usePlaylist();
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isFullscreen, setIsFullscreen, audioRef } = usePlayer();
   const { isDarkMode } = useTheme();
 
   const getImageUrl = (track) => {
@@ -67,6 +68,47 @@ const NowPlayingBar = () => {
     return "https://via.placeholder.com/56?text=Cover";
   };
 
+  const togglePlay = () => {
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(error => {
+        console.error('Error playing audio:', error);
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (currentTrack) {
+      audioRef.current.src = currentTrack.audioUrl;
+      audioRef.current.play().catch(error => {
+        console.error('Error playing audio:', error);
+      });
+    }
+  }, [currentTrack, audioRef]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [audioRef, setCurrentTime]);
+
+  const handleVolumeChange = (e) => {
+    const newVolume = parseFloat(e.target.value);
+    updateVolume(newVolume);
+  };
+
   return (
     <>
       <div className={`fixed bottom-0 left-0 right-0 px-2 sm:px-4 py-2 sm:py-3 ${
@@ -76,7 +118,6 @@ const NowPlayingBar = () => {
       }`}>
         <audio
           ref={audioRef}
-          src={currentTrack?.audioUrl}
           preload="metadata"
           aria-label={`Lecture de ${currentTrack?.title || 'Aucun titre'} par ${currentTrack?.artist || 'Aucun artiste'}`}
         >
@@ -237,7 +278,7 @@ const NowPlayingBar = () => {
                 max="1"
                 step="0.01"
                 value={volume}
-                onChange={(e) => updateVolume(e.target.value)}
+                onChange={handleVolumeChange}
                 className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
                 aria-label="Volume"
               />
@@ -251,7 +292,7 @@ const NowPlayingBar = () => {
           </div>
         </div>
       </div>
-      {isFullscreen && <FullscreenPlayer onClose={() => setIsFullscreen(false)} />}
+      {isFullscreen && <FullscreenPlayer />}
     </>
   );
 };

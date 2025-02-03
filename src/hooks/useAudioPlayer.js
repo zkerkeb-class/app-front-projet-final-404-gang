@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
+import { usePlayer } from '../contexts/PlayerContext';
 
 export const REPEAT_MODES = {
   OFF: 'OFF',
@@ -15,12 +16,13 @@ const useAudioPlayer = () => {
   const [repeatMode, setRepeatMode] = useState(REPEAT_MODES.OFF);
   const [shuffle, setShuffle] = useState(false);
   const [error, setError] = useState(null);
-  const audioRef = useRef(new Audio());
+  const [isMuted, setIsMuted] = useState(false);
   const { currentTrack, playNext: playlistNext, playPrevious: playlistPrevious, toggleShuffle: togglePlaylistShuffle } = usePlaylist();
+  const { audioRef } = usePlayer();
 
   // Update audio source when track changes
   useEffect(() => {
-    if (currentTrack?.audioUrl) {
+    if (currentTrack?.audioUrl && audioRef.current.src !== currentTrack.audioUrl) {
       console.log('Loading track:', currentTrack.title);
       console.log('Audio URL:', currentTrack.audioUrl);
       
@@ -39,7 +41,7 @@ const useAudioPlayer = () => {
     } else {
       console.warn('No audio URL available for track:', currentTrack);
     }
-  }, [currentTrack, isPlaying]);
+  }, [currentTrack, isPlaying, audioRef]);
 
   // Set up audio event listeners
   useEffect(() => {
@@ -52,7 +54,6 @@ const useAudioPlayer = () => {
         audio.currentTime = 0;
         audio.play().catch(error => {
           console.error('Error replaying track:', error);
-          setError(error.message);
         });
       } else {
         playlistNext(repeatMode);
@@ -103,8 +104,9 @@ const useAudioPlayer = () => {
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', () => setError(null));
 
-    // Update volume
+    // Update volume and mute state
     audio.volume = volume;
+    audio.muted = isMuted;
 
     return () => {
       // Remove event listeners
@@ -115,7 +117,7 @@ const useAudioPlayer = () => {
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('canplay', () => setError(null));
     };
-  }, [currentTrack, isPlaying, volume, repeatMode, playlistNext]);
+  }, [currentTrack, isPlaying, volume, isMuted, repeatMode, playlistNext, audioRef]);
 
   const togglePlay = useCallback(() => {
     if (!currentTrack?.audioUrl) {
@@ -125,28 +127,30 @@ const useAudioPlayer = () => {
 
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
-        playPromise.catch(error => {
+        playPromise.then(() => {
+          setIsPlaying(true);
+        }).catch(error => {
           console.error('Error in togglePlay:', error);
           setError(error.message);
         });
       }
     }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying, currentTrack, audioRef]);
 
   const seek = useCallback((time) => {
     if (!audioRef.current.duration) return;
     audioRef.current.currentTime = time;
     setCurrentTime(time);
-  }, []);
+  }, [audioRef]);
 
   const updateVolume = useCallback((newVolume) => {
     audioRef.current.volume = newVolume;
     setVolume(newVolume);
-  }, []);
+  }, [audioRef]);
 
   const toggleRepeatMode = useCallback(() => {
     setRepeatMode(current => {
@@ -158,7 +162,7 @@ const useAudioPlayer = () => {
         case REPEAT_MODES.ONE:
           return REPEAT_MODES.OFF;
         default:
-          return REPEAT_MODES.OFF;
+          return REPEAT_MODES.OFF; // eslint-disable-line default-case
       }
     });
   }, []);
@@ -176,6 +180,13 @@ const useAudioPlayer = () => {
     playlistPrevious();
   }, [playlistPrevious]);
 
+  const toggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      audioRef.current.muted = !prev;
+      return !prev;
+    });
+  }, [audioRef]);
+
   return {
     isPlaying,
     currentTime,
@@ -184,6 +195,7 @@ const useAudioPlayer = () => {
     repeatMode,
     shuffle,
     error,
+    isMuted,
     togglePlay,
     seek,
     updateVolume,
@@ -191,7 +203,10 @@ const useAudioPlayer = () => {
     toggleShuffleMode,
     playNext: handlePlayNext,
     playPrevious: handlePlayPrevious,
-    audioRef
+    toggleMute,
+    audioRef,
+    setCurrentTime,
+    setIsPlaying
   };
 };
 

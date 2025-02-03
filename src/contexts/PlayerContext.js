@@ -1,16 +1,19 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { shuffle as shuffleArray } from '../utils/array';
 import { fetchTracks } from '../services/trackService';
 
-const PlaylistContext = createContext();
+const PlayerContext = createContext();
 
-export const PlaylistProvider = ({ children }) => {
+export const PlayerProvider = ({ children }) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [playlist, setPlaylist] = useState([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(-1);
   const [originalPlaylist, setOriginalPlaylist] = useState([]);
   const [isShuffled, setIsShuffled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const audioRef = useRef(new Audio());
 
   // Fetch initial tracks
   useEffect(() => {
@@ -101,8 +104,13 @@ export const PlaylistProvider = ({ children }) => {
   const currentTrack = playlist[currentTrackIndex];
 
   return (
-    <PlaylistContext.Provider
+    <PlayerContext.Provider
       value={{
+        isFullscreen,
+        setIsFullscreen,
+        isPlaying,
+        setIsPlaying,
+        audioRef,
         playlist,
         currentTrack,
         currentTrackIndex,
@@ -116,14 +124,14 @@ export const PlaylistProvider = ({ children }) => {
       }}
     >
       {children}
-    </PlaylistContext.Provider>
+    </PlayerContext.Provider>
   );
 };
 
-export const usePlaylist = () => {
-  const context = useContext(PlaylistContext);
+export const usePlayer = () => {
+  const context = useContext(PlayerContext);
   if (!context) {
-    throw new Error('usePlaylist must be used within a PlaylistProvider');
+    throw new Error('usePlayer must be used within a PlayerProvider');
   }
   return context;
 };

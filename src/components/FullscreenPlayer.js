@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import useWaveform from '../hooks/useWaveform';
 import useAudioPlayer, { REPEAT_MODES } from '../hooks/useAudioPlayer';
@@ -13,6 +13,7 @@ import {
   ArrowPathRoundedSquareIcon,
 } from '@heroicons/react/24/solid';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePlayer } from '../contexts/PlayerContext';
 
 const ImageWithFallback = ({ track, className }) => {
   // Get the best available image
@@ -49,8 +50,6 @@ const ImageWithFallback = ({ track, className }) => {
 const FullscreenPlayer = ({ onClose }) => {
   const { currentTrack } = usePlaylist();
   const {
-    isPlaying,
-    togglePlay,
     currentTime,
     duration,
     seek,
@@ -63,6 +62,7 @@ const FullscreenPlayer = ({ onClose }) => {
   } = useAudioPlayer();
   const { canvasRef, isLoading: isWaveformLoading } = useWaveform(currentTrack?.audioUrl);
   const { isDarkMode } = useTheme();
+  const { audioRef, isPlaying, setIsFullscreen, setIsPlaying } = usePlayer();
 
   const formatTime = (time) => {
     if (isNaN(time)) return '0:00';
@@ -71,14 +71,36 @@ const FullscreenPlayer = ({ onClose }) => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const togglePlay = () => {
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(error => {
+        console.error('Error playing audio:', error);
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (currentTrack && audioRef.current.src !== currentTrack.audioUrl) {
+      audioRef.current.src = currentTrack.audioUrl;
+      audioRef.current.play().catch(error => {
+        console.error('Error playing audio:', error);
+      });
+    }
+  }, [currentTrack, audioRef]);
+
   if (!currentTrack) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${
+    <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center ${
       isDarkMode ? 'bg-black bg-opacity-90' : 'bg-white bg-opacity-95'
     }`}>
       <button
-        onClick={onClose}
+        onClick={() => setIsFullscreen(false)}
         className={`absolute top-4 right-4 ${
           isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-900 hover:text-gray-600'
         }`}
@@ -87,8 +109,8 @@ const FullscreenPlayer = ({ onClose }) => {
         <XMarkIcon className="h-8 w-8" />
       </button>
 
-      <div className="max-w-4xl w-full px-4">
-        <div className="aspect-square relative mb-8 rounded-lg overflow-hidden group">
+      <div className="flex flex-col items-center w-full max-w-6xl px-4 sm:px-8 lg:px-16">
+        <div className="relative mb-8 rounded-lg overflow-hidden group w-full max-w-3xl">
           <ImageWithFallback
             track={currentTrack}
             className="w-full h-full object-cover"
@@ -119,7 +141,7 @@ const FullscreenPlayer = ({ onClose }) => {
           )}
         </div>
 
-        <div className="mb-8">
+        <div className="mb-8 w-full max-w-3xl">
           <canvas
             ref={canvasRef}
             width="800"
@@ -128,7 +150,7 @@ const FullscreenPlayer = ({ onClose }) => {
           />
         </div>
 
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center w-full max-w-3xl">
           <div className="flex items-center gap-6 mb-4">
             <button
               onClick={toggleShuffleMode}
@@ -186,7 +208,7 @@ const FullscreenPlayer = ({ onClose }) => {
             </button>
           </div>
 
-          <div className="w-full max-w-2xl flex items-center gap-2">
+          <div className="w-full flex items-center gap-2">
             <span className={`text-xs w-10 text-right ${isDarkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
               {formatTime(currentTime)}
             </span>

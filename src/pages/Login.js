@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { loginUser } from '../services/authService';
 
 const Login = () => {
   const { isDarkMode } = useTheme();
@@ -9,11 +10,24 @@ const Login = () => {
     password: '',
     rememberMe: false
   });
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement login logic
-    console.log('Login attempt:', formData);
+    try {
+      const userData = {
+        email: formData.email,
+        password: formData.password,
+      };
+      const response = await loginUser(userData);
+      console.log('Login successful:', response);
+      navigate('/');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Invalid email or password');
+    }
   };
 
   const handleChange = (e) => {

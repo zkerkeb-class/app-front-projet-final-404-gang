@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { registerUser } from '../services/authService';
 
 const Register = () => {
   const { isDarkMode } = useTheme();
@@ -12,11 +13,30 @@ const Register = () => {
     birthDate: '',
     acceptTerms: false
   });
+  const navigate = useNavigate();
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement registration logic
-    console.log('Registration attempt:', formData);
+    if (formData.email !== formData.confirmEmail) {
+      setError('Emails do not match');
+      return;
+    }
+    try {
+      const userData = {
+        email: formData.email,
+        password: formData.password,
+        username: formData.username,
+        birthDate: formData.birthDate,
+      };
+      const response = await registerUser(userData);
+      console.log('Registration successful:', response);
+      navigate('/login');
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError('Registration failed');
+    }
   };
 
   const handleChange = (e) => {
