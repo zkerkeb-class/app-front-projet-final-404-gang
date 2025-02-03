@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { loginUser } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
   const { isDarkMode } = useTheme();
@@ -11,22 +12,45 @@ const Login = () => {
     rememberMe: false
   });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
 
+  useEffect(() => {
+    // Show success message if redirected from register
+    if (location.state?.message) {
+      setErrorMessage('');
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setErrorMessage('');
+
     try {
       const userData = {
         email: formData.email,
         password: formData.password,
       };
+      
       const response = await loginUser(userData);
-      console.log('Login successful:', response);
-      navigate('/');
+      
+      // Check both token and user data
+      if (response.token && response.user) {
+        login(response.user);
+        navigate('/');
+      } else {
+        console.error('Invalid response format:', response);
+        throw new Error('Invalid response from server');
+      }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Invalid email or password');
+      setErrorMessage(err.message || 'Email ou mot de passe incorrect');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -61,6 +85,12 @@ const Login = () => {
           }`}>
             Se connecter à Spotify
           </h1>
+
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+              {errorMessage}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -133,9 +163,12 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full bg-spotify-green text-black font-bold py-3 px-4 rounded-full hover:scale-105 transition-transform"
+              disabled={isLoading}
+              className={`w-full bg-spotify-green text-black font-bold py-3 px-4 rounded-full 
+                ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105'} 
+                transition-transform`}
             >
-              Se connecter
+              {isLoading ? 'Connexion en cours...' : 'Se connecter'}
             </button>
           </form>
 

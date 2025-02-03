@@ -14,15 +14,26 @@ const Register = () => {
     acceptTerms: false
   });
   const navigate = useNavigate();
-  const [error, setError] = useState('');
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setErrorMessage('');
+
     if (formData.email !== formData.confirmEmail) {
-      setError('Emails do not match');
+      setErrorMessage('Les adresses e-mail ne correspondent pas');
+      setIsLoading(false);
       return;
     }
+
+    if (formData.password.length < 6) {
+      setErrorMessage('Le mot de passe doit contenir au moins 6 caractères');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const userData = {
         email: formData.email,
@@ -30,12 +41,16 @@ const Register = () => {
         username: formData.username,
         birthDate: formData.birthDate,
       };
-      const response = await registerUser(userData);
-      console.log('Registration successful:', response);
-      navigate('/login');
+
+      await registerUser(userData);
+      navigate('/login', { 
+        state: { message: 'Inscription réussie ! Vous pouvez maintenant vous connecter.' }
+      });
     } catch (err) {
       console.error('Registration error:', err);
-      setError('Registration failed');
+      setErrorMessage(err.message || 'Une erreur est survenue lors de l\'inscription');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -68,6 +83,12 @@ const Register = () => {
           }`}>
             Créer un compte
           </h1>
+
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+              {errorMessage}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -219,9 +240,12 @@ const Register = () => {
 
             <button
               type="submit"
-              className="w-full bg-spotify-green text-black font-bold py-3 px-4 rounded-full hover:scale-105 transition-transform"
+              disabled={isLoading}
+              className={`w-full bg-spotify-green text-black font-bold py-3 px-4 rounded-full 
+                ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105'} 
+                transition-transform`}
             >
-              S&apos;inscrire
+              {isLoading ? 'Inscription en cours...' : 'S\'inscrire'}
             </button>
           </form>
 

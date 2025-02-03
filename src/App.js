@@ -16,33 +16,40 @@ import ArtistsPage from './pages/ArtistsPage';
 import LikedSongsPage from './pages/LikedSongsPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import { AuthProvider } from './contexts/AuthContext';
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   return (
-    <Router>
-      <ThemeProvider>
-        <PlaylistProvider>
-          <PlayerProvider>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/" element={<Layout />}>
-                <Route index element={<HomePage />} />
-                <Route path="search" element={<SearchPage />} />
-                <Route path="library" element={<LibraryPage />} />
-                <Route path="playlists" element={<PlaylistsPage />} />
-                <Route path="playlist/:id" element={<PlaylistPage />} />
-                <Route path="albums" element={<AlbumsPage />} />
-                <Route path="album/:id" element={<AlbumPage />} />
-                <Route path="artists" element={<ArtistsPage />} />
-                <Route path="artist/:id" element={<ArtistPage />} />
-                <Route path="liked-songs" element={<LikedSongsPage />} />
-              </Route>
-            </Routes>
-          </PlayerProvider>
-        </PlaylistProvider>
-      </ThemeProvider>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <ThemeProvider>
+          <PlaylistProvider>
+            <PlayerProvider>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<HomePage />} />
+                  <Route path="search" element={<SearchPage />} />
+                  <Route path="library" element={<LibraryPage />} />
+                  <Route path="playlists" element={<PlaylistsPage />} />
+                  <Route path="playlist/:id" element={<PlaylistPage />} />
+                  <Route path="albums" element={<AlbumsPage />} />
+                  <Route path="album/:id" element={<AlbumPage />} />
+                  <Route path="artists" element={<ArtistsPage />} />
+                  <Route path="artist/:id" element={<ArtistPage />} />
+                  <Route path="liked-songs" element={<LikedSongsPage />} />
+                </Route>
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Routes>
+            </PlayerProvider>
+          </PlaylistProvider>
+        </ThemeProvider>
+      </Router>
+    </AuthProvider>
   );
 }
 

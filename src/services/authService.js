@@ -16,11 +16,24 @@ export const registerUser = async (userData) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData),
+      credentials: 'include',
+      body: JSON.stringify({
+        username: userData.username,
+        email: userData.email,
+        password: userData.password
+      })
     });
-    if (!response.ok) throw new Error('Failed to register user');
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to register user');
+    }
+
     const data = await response.json();
-    return formatUserData(data.user);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
+    return data;
   } catch (error) {
     console.error('Error registering user:', error);
     throw error;
@@ -34,13 +47,45 @@ export const loginUser = async (userData) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData),
+      credentials: 'include',
+      body: JSON.stringify({
+        email: userData.email,
+        password: userData.password
+      })
     });
-    if (!response.ok) throw new Error('Failed to login user');
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to login');
+    }
+
     const data = await response.json();
-    return formatUserData(data);
+    
+    // Validate response data
+    if (!data.token || !data.user) {
+      throw new Error('Invalid response format from server');
+    }
+
+    // Store token and user data
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+
+    return data;
   } catch (error) {
-    console.error('Error logging in user:', error);
+    console.error('Error logging in:', error);
     throw error;
   }
+};
+
+export const logoutUser = () => {
+  localStorage.removeItem('token');
+};
+
+export const getToken = () => {
+  return localStorage.getItem('token');
+};
+
+export const isAuthenticated = () => {
+  const token = getToken();
+  return !!token;
 };

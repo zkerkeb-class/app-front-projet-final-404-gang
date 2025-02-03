@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { 
   Bars3Icon, 
   ChevronLeftIcon, 
@@ -9,11 +9,16 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import ProfileMenu from './ProfileMenu';
 
 const TopBar = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user } = useAuth();
+
+  console.log('Current user state:', user);
 
   const isHomePage = location.pathname === '/';
   const showBackButton = !isHomePage;
@@ -85,24 +90,30 @@ const TopBar = ({ onMenuClick }) => {
             )}
           </button>
 
-          {/* Auth Buttons */}
+          {/* Auth Buttons - with explicit check for user */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleNavigate('/register')}
-              className={`hidden sm:block px-4 py-2 rounded-full ${
-                isDarkMode 
-                  ? 'text-white hover:text-gray-300' 
-                  : 'text-gray-900 hover:text-gray-600'
-              }`}
-            >
-              Sign up
-            </button>
-            <button
-              onClick={() => handleNavigate('/login')}
-              className="px-6 py-2 rounded-full bg-white text-black font-medium hover:scale-105 transition-transform"
-            >
-              Log in
-            </button>
+            {user && Object.keys(user).length > 0 ? (
+              <ProfileMenu />
+            ) : (
+              <>
+                <Link
+                  to="/register"
+                  className={`text-sm font-medium px-4 py-2 rounded-full transition-colors ${
+                    isDarkMode 
+                      ? 'text-white hover:text-spotify-green' 
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Sign up
+                </Link>
+                <Link
+                  to="/login"
+                  className="bg-spotify-green text-black text-sm font-bold px-6 py-2 rounded-full hover:scale-105 transition-transform"
+                >
+                  Log in
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
