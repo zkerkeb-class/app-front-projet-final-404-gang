@@ -130,7 +130,22 @@ const HomePage = () => {
     // Extract required data safely
     const artistName = track.artist?.name || 'Unknown Artist';
     const albumTitle = track.album?.title || 'Unknown Album';
-    const coverImage = track.coverImage || track.album?.coverImage || PLACEHOLDER_IMAGES.TRACK;
+    
+    // Use the correct image path structure
+    const coverImage = track.images?.medium || 
+                      track.images?.small || 
+                      track.images?.thumbnail ||
+                      track.album?.images?.medium ||
+                      track.album?.images?.small ||
+                      track.album?.images?.thumbnail ||
+                      PLACEHOLDER_IMAGES.TRACK;
+
+    console.log('Track image being used:', {
+      trackTitle: track.title,
+      trackImages: track.images,
+      albumImages: track.album?.images,
+      selectedImage: coverImage
+    });
 
     return (
       <button
@@ -143,6 +158,11 @@ const HomePage = () => {
             src={coverImage}
             alt={track.title}
             className="w-full h-full object-cover rounded-lg shadow-lg"
+            onError={(e) => {
+              console.log('Image load error for track:', track.title);
+              e.target.onerror = null;
+              e.target.src = PLACEHOLDER_IMAGES.TRACK;
+            }}
           />
           <button
             className="absolute bottom-2 right-2 bg-green-500 rounded-full p-3 opacity-0 group-hover:opacity-100 hover:scale-105 transition-all duration-300 shadow-lg"

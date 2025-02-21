@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { shuffle as shuffleArray } from '../utils/array';
 import { fetchTracks } from '../services/trackService';
+import { usePlayer } from './PlayerContext';
 
 const PlaylistContext = createContext();
 
@@ -11,6 +12,8 @@ export const PlaylistProvider = ({ children }) => {
   const [isShuffled, setIsShuffled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const { setPlaylistAndPlay: playerSetPlaylistAndPlay } = usePlayer();
 
   // Fetch initial tracks
   useEffect(() => {
@@ -53,17 +56,9 @@ export const PlaylistProvider = ({ children }) => {
       return;
     }
 
-    // Ensure tracks are properly formatted
-    const formattedTracks = tracks.map(track => ({
-      ...track,
-      artist: track.artist?.name || 'Unknown Artist',
-      album: track.album?.title || 'Unknown Album'
-    }));
-
-    setOriginalPlaylist(formattedTracks);
-    setPlaylist(formattedTracks);
-    setCurrentTrackIndex(startIndex);
-  }, []);
+    // Let PlayerContext handle the playlist
+    playerSetPlaylistAndPlay(tracks, startIndex);
+  }, [playerSetPlaylistAndPlay]);
 
   const toggleShuffle = useCallback(() => {
     if (isShuffled) {

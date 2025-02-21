@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { usePlaylist } from '../contexts/PlaylistContext';
 import { usePlayer } from '../contexts/PlayerContext';
 
 export const REPEAT_MODES = {
@@ -13,35 +12,19 @@ const useAudioPlayer = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [repeatMode, setRepeatMode] = useState(REPEAT_MODES.OFF);
-  const [shuffle, setShuffle] = useState(false);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
-  const { currentTrack, playNext: playlistNext, playPrevious: playlistPrevious, toggleShuffle: togglePlaylistShuffle } = usePlaylist();
-  const { audioRef } = usePlayer();
-
-  // Update audio source when track changes
-  useEffect(() => {
-    if (currentTrack?.audioUrl && audioRef.current.src !== currentTrack.audioUrl) {
-      console.log('Loading track:', currentTrack.title);
-      console.log('Audio URL:', currentTrack.audioUrl);
-      
-      audioRef.current.src = currentTrack.audioUrl;
-      audioRef.current.load();
-      
-      if (isPlaying) {
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.error('Error playing audio:', error);
-            setError(error.message);
-          });
-        }
-      }
-    } else {
-      console.warn('No audio URL available for track:', currentTrack);
-    }
-  }, [currentTrack, isPlaying, audioRef]);
+  
+  const { 
+    currentTrack,
+    playNext: playerPlayNext,
+    playPrevious: playerPlayPrevious,
+    isShuffled,
+    toggleRepeatMode: playerToggleRepeat,
+    toggleShuffle: playerToggleShuffle,
+    repeatMode,
+    audioRef
+  } = usePlayer();
 
   // Set up audio event listeners
   useEffect(() => {
@@ -49,16 +32,6 @@ const useAudioPlayer = () => {
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleDurationChange = () => setDuration(audio.duration);
-    const handleEnded = () => {
-      if (repeatMode === REPEAT_MODES.ONE) {
-        audio.currentTime = 0;
-        audio.play().catch(error => {
-          console.error('Error replaying track:', error);
-        });
-      } else {
-        playlistNext(repeatMode);
-      }
-    };
     const handleLoadedMetadata = () => {
       console.log('Track loaded:', currentTrack?.title);
       console.log('Duration:', audio.duration);
@@ -75,21 +48,22 @@ const useAudioPlayer = () => {
       const error = e.target.error;
       let errorMessage = 'Unknown error playing track';
       
-      if (error) {
-        switch (error.code) {
-          case error.MEDIA_ERR_ABORTED:
-            errorMessage = 'Playback aborted by user';
-            break;
-          case error.MEDIA_ERR_NETWORK:
-            errorMessage = 'Network error while loading track';
-            break;
-          case error.MEDIA_ERR_DECODE:
-            errorMessage = 'Error decoding track';
-            break;
-          case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = 'Track format not supported';
-            break;
-        }
+      switch (error?.code) {
+        case error?.MEDIA_ERR_ABORTED:
+          errorMessage = 'Playback aborted by user';
+          break;
+        case error?.MEDIA_ERR_NETWORK:
+          errorMessage = 'Network error while loading track';
+          break;
+        case error?.MEDIA_ERR_DECODE:
+          errorMessage = 'Error decoding track';
+          break;
+        case error?.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          errorMessage = 'Track format not supported';
+          break;
+        default:
+          errorMessage = 'Unknown error playing track';
+          break;
       }
       
       setError(errorMessage);
@@ -99,7 +73,6 @@ const useAudioPlayer = () => {
     // Add event listeners
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
-    audio.addEventListener('ended', handleEnded);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', () => setError(null));
@@ -112,12 +85,11 @@ const useAudioPlayer = () => {
       // Remove event listeners
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('durationchange', handleDurationChange);
-      audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('canplay', () => setError(null));
     };
-  }, [currentTrack, isPlaying, volume, isMuted, repeatMode, playlistNext, audioRef]);
+  }, [currentTrack, isPlaying, volume, isMuted, repeatMode, playerPlayNext, audioRef]);
 
   const togglePlay = useCallback(() => {
     if (!currentTrack?.audioUrl) {
@@ -131,15 +103,38 @@ const useAudioPlayer = () => {
     } else {
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
-        playPromise.then(() => {
-          setIsPlaying(true);
-        }).catch(error => {
-          console.error('Error in togglePlay:', error);
-          setError(error.message);
-        });
+        playPromise
+          .then(() => {
+            console.log('Playback started in useAudioPlayer');
+            setIsPlaying(true);
+          })
+          .catch(error => {
+            console.error('Error in togglePlay:', error);
+            setError(error.message);
+            setIsPlaying(false);
+          });
       }
     }
-  }, [isPlaying, currentTrack, audioRef]);
+  }, [currentTrack, isPlaying, setIsPlaying]);
+
+  // Add effect to handle audio state changes
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => setIsPlaying(false);
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [audioRef, setIsPlaying]);
 
   const seek = useCallback((time) => {
     if (!audioRef.current.duration) return;
@@ -153,32 +148,20 @@ const useAudioPlayer = () => {
   }, [audioRef]);
 
   const toggleRepeatMode = useCallback(() => {
-    setRepeatMode(current => {
-      switch (current) {
-        case REPEAT_MODES.OFF:
-          return REPEAT_MODES.ALL;
-        case REPEAT_MODES.ALL:
-          return REPEAT_MODES.ONE;
-        case REPEAT_MODES.ONE:
-          return REPEAT_MODES.OFF;
-        default:
-          return REPEAT_MODES.OFF; // eslint-disable-line default-case
-      }
-    });
-  }, []);
+    playerToggleRepeat();
+  }, [playerToggleRepeat]);
 
   const toggleShuffleMode = useCallback(() => {
-    setShuffle(current => !current);
-    togglePlaylistShuffle();
-  }, [togglePlaylistShuffle]);
+    playerToggleShuffle();
+  }, [playerToggleShuffle]);
 
   const handlePlayNext = useCallback(() => {
-    playlistNext(repeatMode);
-  }, [playlistNext, repeatMode]);
+    playerPlayNext(repeatMode);
+  }, [playerPlayNext, repeatMode]);
 
   const handlePlayPrevious = useCallback(() => {
-    playlistPrevious();
-  }, [playlistPrevious]);
+    playerPlayPrevious();
+  }, [playerPlayPrevious]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -187,13 +170,42 @@ const useAudioPlayer = () => {
     });
   }, [audioRef]);
 
+  // Add back the track ending handler
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const handleEnded = () => {
+      if (repeatMode === 'ONE') {
+        audio.currentTime = 0;
+        audio.play().catch(error => {
+          console.error('Error replaying track:', error);
+        });
+      } else {
+        playerPlayNext(repeatMode);
+      }
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    return () => audio.removeEventListener('ended', handleEnded);
+  }, [audioRef, repeatMode, playerPlayNext]);
+
+  // Add debug logging for play state changes
+  useEffect(() => {
+    console.log('Play state changed:', isPlaying);
+  }, [isPlaying]);
+
+  // Add debug logging for track changes
+  useEffect(() => {
+    console.log('Current track in useAudioPlayer:', currentTrack);
+  }, [currentTrack]);
+
   return {
     isPlaying,
     currentTime,
     duration,
     volume,
     repeatMode,
-    shuffle,
+    shuffle: isShuffled,
     error,
     isMuted,
     togglePlay,

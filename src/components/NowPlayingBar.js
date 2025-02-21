@@ -14,10 +14,14 @@ import {
   ArrowsPointingOutIcon
 } from '@heroicons/react/24/solid';
 import useAudioPlayer, { REPEAT_MODES } from '../hooks/useAudioPlayer';
-import { usePlaylist } from '../contexts/PlaylistContext';
 import FullscreenPlayer from './FullscreenPlayer';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePlayer } from '../contexts/PlayerContext';
+import KeyboardShortcutsTooltip from './KeyboardShortcutsTooltip';
+import QueueButton from './QueueButton';
+import Queue from './Queue';
+import JamModeButton from './JamModeButton';
+import { useRoom } from '../contexts/RoomContext';
 
 const formatTime = (time) => {
   if (isNaN(time)) return '0:00';
@@ -25,6 +29,8 @@ const formatTime = (time) => {
   const seconds = Math.floor(time % 60);
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
+
+const PLACEHOLDER_IMAGE = '/images/placeholder-cover.png';
 
 const NowPlayingBar = () => {
   const {
@@ -40,55 +46,52 @@ const NowPlayingBar = () => {
     toggleMute,
     updateVolume,
     toggleRepeatMode,
-    toggleShuffle,
+    toggleShuffleMode,
     playNext,
     playPrevious,
-    setCurrentTime, // Add this line
-    setIsPlaying // Add this line
+    setCurrentTime,
   } = useAudioPlayer();
-  const { currentTrack } = usePlaylist();
-  const { isFullscreen, setIsFullscreen, audioRef } = usePlayer();
+  
+  const { 
+    isFullscreen, 
+    setIsFullscreen, 
+    audioRef,
+    currentTrack,
+    togglePlay,
+  } = usePlayer();
   const { isDarkMode } = useTheme();
+  const { isJamMode, emitPlaybackState } = useRoom();
 
   const getImageUrl = (track) => {
-    if (!track) return "https://via.placeholder.com/56?text=Cover";
-    
-    // Check album images first
-    if (track.album?.images) {
-      const { thumbnail, small, medium } = track.album.images;
-      return thumbnail || small || medium;
+    if (!track) {
+      console.log('No track provided to getImageUrl');
+      return PLACEHOLDER_IMAGE;
     }
     
-    // Then check track images
-    if (track.images) {
-      const { thumbnail, small, medium } = track.images;
-      return thumbnail || small || medium;
+    console.log('Getting image for track:', {
+      trackId: track._id,
+      title: track.title,
+      albumImages: track.album?.images,
+      trackImages: track.images
+    });
+    
+    // First try track images
+    if (track.images?.thumbnail || track.images?.small || track.images?.medium) {
+      const image = track.images.thumbnail || track.images.small || track.images.medium;
+      console.log('Using track image:', image);
+      return image;
+    }
+    
+    // Then try album images
+    if (track.album?.images?.thumbnail || track.album?.images?.small || track.album?.images?.medium) {
+      const image = track.album.images.thumbnail || track.album.images.small || track.album.images.medium;
+      console.log('Using album image:', image);
+      return image;
     }
 
-    return "https://via.placeholder.com/56?text=Cover";
+    console.log('No valid image found, using placeholder');
+    return PLACEHOLDER_IMAGE;
   };
-
-  const togglePlay = () => {
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch(error => {
-        console.error('Error playing audio:', error);
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (currentTrack) {
-      audioRef.current.src = currentTrack.audioUrl;
-      audioRef.current.play().catch(error => {
-        console.error('Error playing audio:', error);
-      });
-    }
-  }, [currentTrack, audioRef]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -107,6 +110,26 @@ const NowPlayingBar = () => {
   const handleVolumeChange = (e) => {
     const newVolume = parseFloat(e.target.value);
     updateVolume(newVolume);
+  };
+
+  const handleTogglePlay = () => {
+    togglePlay();
+    if (isJamMode) {
+      emitPlaybackState({ 
+        isPlaying: !isPlaying, 
+        currentTime: currentTime 
+      });
+    }
+  };
+
+  const handleSeek = (newTime) => {
+    seek(newTime);
+    if (isJamMode) {
+      emitPlaybackState({ 
+        isPlaying: isPlaying, 
+        currentTime: newTime 
+      });
+    }
   };
 
   return (
@@ -137,7 +160,9 @@ const NowPlayingBar = () => {
               alt={currentTrack?.title || "Album cover"}
               className="w-10 h-10 sm:w-14 sm:h-14 rounded mr-2 sm:mr-4 flex-shrink-0"
               onError={(e) => {
-                e.target.src = "https://via.placeholder.com/56?text=Cover";
+                console.log('Image load error for URL:', e.target.src);
+                e.target.onerror = null;
+                e.target.src = PLACEHOLDER_IMAGE;
               }}
             />
             <div className="min-w-0">
@@ -154,7 +179,9 @@ const NowPlayingBar = () => {
                 </button>
               </div>
               <p className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-500'} truncate`}>
-                {currentTrack?.artist || "Aucun artiste"}
+                {typeof currentTrack?.artist === 'object' 
+                  ? currentTrack?.artist?.name 
+                  : currentTrack?.artist || "Aucun artiste"}
               </p>
             </div>
           </div>
@@ -163,12 +190,15 @@ const NowPlayingBar = () => {
           <div className="flex flex-col items-center w-1/3">
             <div className="flex items-center gap-2 sm:gap-4">
               <button
-                onClick={toggleShuffle}
+                onClick={toggleShuffleMode}
                 className={`transition-colors ${
-                  shuffle ? 'text-green-500' : isDarkMode ? 'text-zinc-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                  shuffle 
+                    ? 'text-green-500' 
+                    : isDarkMode 
+                      ? 'text-zinc-400 hover:text-white' 
+                      : 'text-gray-500 hover:text-gray-900'
                 }`}
-                aria-label="Lecture aléatoire"
-                title="Lecture aléatoire"
+                aria-label="Toggle shuffle"
               >
                 <ArrowsRightLeftIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
@@ -182,7 +212,7 @@ const NowPlayingBar = () => {
               </button>
               
               <button
-                onClick={togglePlay}
+                onClick={handleTogglePlay}
                 disabled={isLoading}
                 className={`p-2 rounded-full bg-white hover:scale-105 transition-transform ${
                   isLoading ? 'opacity-50' : ''
@@ -206,25 +236,22 @@ const NowPlayingBar = () => {
 
               <button
                 onClick={toggleRepeatMode}
-                className={`text-zinc-400 hover:text-white transition-colors ${
-                  repeatMode !== REPEAT_MODES.OFF ? 'text-green-500' : ''
+                className={`transition-colors relative ${
+                  repeatMode !== 'OFF'
+                    ? 'text-green-500'
+                    : isDarkMode
+                      ? 'text-zinc-400 hover:text-white'
+                      : 'text-gray-500 hover:text-gray-900'
                 }`}
-                aria-label="Mode répétition"
-                title={
-                  repeatMode === REPEAT_MODES.ONE
-                    ? 'Répéter le titre'
-                    : repeatMode === REPEAT_MODES.ALL
-                    ? 'Répéter la playlist'
-                    : 'Répétition désactivée'
-                }
+                aria-label="Toggle repeat"
               >
-                {repeatMode === REPEAT_MODES.ONE ? (
+                {repeatMode === 'ONE' ? (
                   <ArrowPathIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                 ) : (
                   <ArrowPathRoundedSquareIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                 )}
-                {repeatMode === REPEAT_MODES.ONE && (
-                  <span className="absolute text-[10px] font-bold">1</span>
+                {repeatMode === 'ONE' && (
+                  <span className="absolute -top-1 -right-1 text-xs font-bold">1</span>
                 )}
               </button>
             </div>
@@ -240,7 +267,7 @@ const NowPlayingBar = () => {
                   min="0"
                   max={duration || 0}
                   value={currentTime}
-                  onChange={(e) => seek(parseFloat(e.target.value))}
+                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
                   className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
                   aria-label="Progression de la lecture"
                 />
@@ -259,6 +286,9 @@ const NowPlayingBar = () => {
 
           {/* Volume Controls */}
           <div className="flex items-center justify-end w-1/3 gap-2">
+            <KeyboardShortcutsTooltip />
+            <QueueButton />
+            <JamModeButton />
             <button
               onClick={toggleMute}
               className="text-zinc-400 hover:text-white transition-colors"
@@ -293,6 +323,7 @@ const NowPlayingBar = () => {
         </div>
       </div>
       {isFullscreen && <FullscreenPlayer />}
+      <Queue />
     </>
   );
 };
