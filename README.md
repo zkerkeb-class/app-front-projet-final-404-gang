@@ -98,3 +98,15 @@ npm start
 ## License
 
 This project is part of a coding course and is used for educational purposes.
+
+## Vidéo
+
+https://youtu.be/INclzZH1tqM
+https://youtu.be/Kz0BmJXqvuQ
+https://youtu.be/7ktGLIE2ncI
+https://youtu.be/PYOMJLxFUTQ
+
+[ ]  Reparer cache redis pour album
+[ ]  CRUD Fonctionnel
+[ ]  Drag and drop pour changer l’ordre des titre dans l’album
+[ ]  Recherche multi critere
